@@ -57,7 +57,7 @@ This section describes who does what in the organization (e.g. who is using Data
 
 * Integrate with Existing SIEM
 * Deploy into Existing VNET with Ingress and Egress Restrictions
-* Resources can only be created in specific regions due to data sovereignty
+* Resources can only be created in specific regions  due to data sovereignty
 * Container Registry Whitelisting
 * Ability to Chargeback to Line of Business
 * Secrets Mgmt
