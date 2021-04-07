@@ -122,10 +122,6 @@ The goal is to secure ARO cluster by routing Egress traffic through an Azure Fir
 ![After](images/arofw.png)
 
 ## Create a private ARO cluster
-If you do not have an existing private ARO cluster, please create one following these instructions.
-[Create an ARO Private Cluster](https://docs.microsoft.com/en-us/azure/openshift/howto-create-private-cluster-4x)
-
-## Set up a Jumpbox for accessing private cluster
 
 ### Set up VARS for your environment
 ```bash
@@ -133,22 +129,69 @@ If you do not have an existing private ARO cluster, please create one following 
 CLUSTER=aro-cluster # Name of your created cluster
 RESOURCEGROUP=aro-rg # The name of your resource group where you created the ARO cluster
 AROVNET=aro-vnet # The name of your vnet from your created ARO cluster
-FWSUBNET=fw-subnet
 JUMPSUBNET=jump-subnet
 LOCATION=eastus # The location where ARO cluster is deployed
 
 ```
 
-### Create a subnet for the Jumpbox
+### Create a resource group
+```bash
+az group create -g "$RESOURCEGROUP" -l $LOCATION
+```
+
+### Create the virtual network
+```bash
+az network vnet create \
+  -g $RESOURCEGROUP \
+  -n $AROVNET \
+  --address-prefixes 10.0.0.0/8
+```
+
+### Add two empty subnets to your virtual network
 ```bash
   az network vnet subnet create \
+    -g "$RESOURCEGROUP" \
+    --vnet-name $AROVNET \
+    -n "$CLUSTER-master" \
+    --address-prefixes 10.10.1.0/24 \
+    --service-endpoints Microsoft.ContainerRegistry
+
+  az network vnet subnet create \
     -g $RESOURCEGROUP \
-    --vnet-name $VNET \
+    --vnet-name $AROVNET \
+    -n "$CLUSTER-worker" \
+    --address-prefixes 10.20.1.0/24 \
+    --service-endpoints Microsoft.ContainerRegistry
+```
+
+### Disable network policies for Private Link Service on your virtual network and subnets. This is a requirement for the ARO service to access and manage the cluster.
+```bash
+az network vnet subnet update \
+  -g "$RESOURCEGROUP" \
+  --vnet-name $AROVNET \
+  -n "$CLUSTER-master" \
+  --disable-private-link-service-network-policies true
+```
+### Create a Firewall Subnet
+```bash
+az network vnet subnet create \
+    -g "$RESOURCEGROUP" \
+    --vnet-name $AROVNET \
+    -n "AzureFirewallSubnet" \
+    --address-prefixes 10.100.1.0/26
+```
+
+## Create a jump-host VM
+### Create a jump-subnet
+```bash
+  az network vnet subnet create \
+    -g "$RESOURCEGROUP" \
+    --vnet-name $AROVNET \
     -n $JUMPSUBNET \
     --address-prefixes 10.30.1.0/24 \
     --service-endpoints Microsoft.ContainerRegistry
 ```
-### Create a Jumpbx VM
+### Create a jump-host VM
 ```bash
 VMUSERNAME=aroadmin
 
@@ -162,17 +205,36 @@ az vm create --name ubuntu-jump \
              --vnet-name $AROVNET 
 ```
 
+## Create an Azure Red Hat OpenShift cluster
+### Get a Red Hat pull secret (optional)
 
-## Create an Azure Firewall
+A Red Hat pull secret enables your cluster to access Red Hat container registries along with additional content. This step is optional but recommended.
 
+1. **[Go to your Red Hat OpenShift cluster manager portal](https://cloud.redhat.com/openshift/install/azure/aro-provisioned) and log in.**
+
+   You will need to log in to your Red Hat account or create a new Red Hat account with your business email and accept the terms and conditions.
+
+2. **Click Download pull secret.**
+
+Keep the saved `pull-secret.txt` file somewhere safe - it will be used in each cluster creation.
+
+When running the `az aro create` command, you can reference your pull secret using the `--pull-secret @pull-secret.txt` parameter. Execute `az aro create` from the directory where you stored your `pull-secret.txt` file. Otherwise, replace `@pull-secret.txt` with `@<path-to-my-pull-secret-file`.
+
+If you are copying your pull secret or referencing it in other scripts, your pull secret should be formatted as a valid JSON string.
 
 ```bash
-az network vnet subnet create \
-    -g $RESOURCEGROUP \
-    --vnet-name $AROVNET \
-    -n $FWSUBNET \
-    --address-prefixes 10.100.1.0/26
+az aro create \
+  -g "$RESOURCEGROUP" \
+  -n "$CLUSTER" \
+  --vnet $AROVNET \
+  --master-subnet "$CLUSTER-master" \
+  --worker-subnet "$CLUSTER-worker" \
+  --apiserver-visibility Private \
+  --ingress-visibility Private \
+  --pull-secret @pull-secret.txt
 ```
+
+## Create an Azure Firewall
 
 ### Create a public IP Address
 ```bash
@@ -187,7 +249,7 @@ az extension update -n azure-firewall
 ### Create Azure Firewall and configure IP Config
 ```bash
 az network firewall create -g $RESOURCEGROUP -n aro-private -l $LOCATION
-az network firewall ip-config create -g $RESOURCEGROUP -f aro-private -n fw-config --public-ip-address fw-ip --vnet-name vnet
+az network firewall ip-config create -g $RESOURCEGROUP -f aro-private -n fw-config --public-ip-address fw-ip --vnet-name $AROVNET
 
 ```
 
@@ -233,8 +295,8 @@ az network firewall application-rule create -g $RESOURCEGROUP -f aro-private \
 
 ### Associate ARO Subnets to FW
 ```bash
-az network vnet subnet update -g $RESOURCEGROUP --vnet-name vnet --name "$CLUSTER-master" --route-table aro-udr
-az network vnet subnet update -g $RESOURCEGROUP --vnet-name vnet --name "$CLUSTER-worker" --route-table aro-udr
+az network vnet subnet update -g $RESOURCEGROUP --vnet-name $AROVNET --name "$CLUSTER-master" --route-table aro-udr
+az network vnet subnet update -g $RESOURCEGROUP --vnet-name $AROVNET --name "$CLUSTER-worker" --route-table aro-udr
 ```
 
 ## Test the configuration from the Jumpbox
@@ -246,8 +308,6 @@ Log into a jumpbox VM and install `azure-cli`, `oc-cli`, and `jq` utils. For the
 curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
 #Install jq
 sudo apt install jq -y
-#Install aro extension
-az extension add -n aro --index https://az.aroapp.io/stable
 ```
 ### Log into the ARO cluster
 List cluster credentials:
@@ -255,6 +315,10 @@ List cluster credentials:
 
 # Login to Azure
 az login
+# Set Vars in Jumpbox
+CLUSTER=aro-cluster # Name of your created cluster
+RESOURCEGROUP=aro-rg # The name of your resource group where you created the ARO cluster
+
 #Get the cluster credentials
 ARO_PASSWORD=$(az aro list-credentials -n $CLUSTER -g $RESOURCEGROUP -o json | jq -r '.kubeadminPassword')
 ARO_USERNAME=$(az aro list-credentials -n $CLUSTER -g $RESOURCEGROUP -o json | jq -r '.kubeadminUsername')
@@ -263,6 +327,17 @@ Get an API server endpoint:
 ```bash
 ARO_URL=$(az aro show -n $CLUSTER -g $RESOURCEGROUP -o json | jq -r '.apiserverProfile.url')
 ```
+
+### Download the oc cli to the jumpbox
+```bash
+cd ~
+wget https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-client-linux.tar.gz
+
+mkdir openshift
+tar -zxvf openshift-client-linux.tar.gz -C openshift
+echo 'export PATH=$PATH:~/openshift' >> ~/.bashrc && source ~/.bashrc
+```
+
 Log in using `oc login`:
 ```bash
 oc login $ARO_URL -u $ARO_USERNAME -p $ARO_PASSWORD
