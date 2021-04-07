@@ -367,3 +367,31 @@ Once the Pod is Running exec into it and test outside connectivity
 oc exec -it centos -- /bin/bash
 curl microsoft.com
 ```
+
+## Access the web console of the private cluster
+
+### Set up ssh forwards commands
+
+```bash
+sudo ssh -i $SSH_PATH -L 443:$CONSOLE_URL:443 aroadmin@$JUMPHOST
+
+example:
+sudo ssh -i /Users/jimzim/.ssh/id_rsa -L 443:console-openshift-console.apps.d5xm5iut.eastus.aroapp.io:443 aroadmin@104.211.18.56
+sudo ssh -i /home/jimzim/.ssh/id_rsa -L 443:oauth-openshift.apps.d5xm5iut.eastus.aroapp.io:443 aroadmin@104.211.18.56
+```
+
+### Modify the etc hosts file on your local machine
+```bash
+##
+# Host Database
+#
+127.0.0.1 console-openshift-console.apps.d5xm5iut.eastus.aroapp.io
+127.0.0.1 oauth-openshift.apps.d5xm5iut.eastus.aroapp.io
+```
+
+## Clean up resources
+
+```bash
+az aro delete -n $CLUSTER -g $RESOURCEGROUP
+
+```
