@@ -13,7 +13,7 @@ This article provides the necessary details that allow you to secure outbound tr
 
 ## Before you begin
 
-This article assumes that you have an existing ARO cluster. If you need an ARO cluster, see the [ARO quickstart](https://docs.microsoft.com/en-us/azure/openshift/tutorial-create-cluster)
+This article assumes that you are creating a new cluster. If you need a basic ARO cluster, see the [ARO quickstart](https://docs.microsoft.com/en-us/azure/openshift/tutorial-create-cluster)
 
 > [!IMPORTANT]
 > ARO preview features are available on a self-service, opt-in basis. Previews are provided "as is" and "as available," and they're excluded from the service-level agreements and limited warranty. ARO previews are partially covered by customer support on a best-effort basis.
