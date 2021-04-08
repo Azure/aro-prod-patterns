@@ -72,3 +72,6 @@ This section describes who does what in the organization (e.g. who is using Data
 ## Key Links
 // TODO: Addd Key Links
 * [Azure Blueprints for CIS Benchmark](https://azure.microsoft.com/en-ca/blog/new-azure-blueprint-for-cis-benchmark/)
+
+We have also been discussing of starting a "Cloud Native Customer Advisory Board". So, I wanted to see if your PG team would be open to help faciliate those discussions. Essentially Kendall and I would do all the
+leg work to get it setup and make sure we invite the right customers. What we would ask of your PG team would be in attendance and hold open conversations with customers. Let me know what you think?
