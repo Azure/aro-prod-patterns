@@ -377,7 +377,6 @@ sudo ssh -i $SSH_PATH -L 443:$CONSOLE_URL:443 aroadmin@$JUMPHOST
 
 example:
 sudo ssh -i /Users/jimzim/.ssh/id_rsa -L 443:console-openshift-console.apps.d5xm5iut.eastus.aroapp.io:443 aroadmin@104.211.18.56
-sudo ssh -i /home/jimzim/.ssh/id_rsa -L 443:oauth-openshift.apps.d5xm5iut.eastus.aroapp.io:443 aroadmin@104.211.18.56
 ```
 
 ### Modify the etc hosts file on your local machine
@@ -389,9 +388,24 @@ sudo ssh -i /home/jimzim/.ssh/id_rsa -L 443:oauth-openshift.apps.d5xm5iut.eastus
 127.0.0.1 oauth-openshift.apps.d5xm5iut.eastus.aroapp.io
 ```
 
+### Use sshuttle as another option
+
+[SSHuttle](https://github.com/sshuttle/sshuttle)
+
+
 ## Clean up resources
 
 ```bash
+
+# Clean up vnet, firewall and jumpbox if not being used by other clusters
+
+# Remove udr from master and worker subnets first or will get error when deleting ARO cluster
+az network vnet subnet update --vnet-name $AROVNET -n aro-cluster-master -g $RESOURCEGROUP --route-table aro-udr --remove routeTable
+az network vnet subnet update --vnet-name $AROVNET -n aro-cluster-worker -g $RESOURCEGROUP --route-table aro-udr --remove routeTable
+
+# Remove ARO Cluster
 az aro delete -n $CLUSTER -g $RESOURCEGROUP
 
+# Remove 
+az group delete -n $RESOURCEGROUP
 ```
