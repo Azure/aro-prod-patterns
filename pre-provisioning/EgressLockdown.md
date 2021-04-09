@@ -397,7 +397,7 @@ sudo ssh -i /Users/jimzim/.ssh/id_rsa -L 443:console-openshift-console.apps.d5xm
 
 ```bash
 
-# Clean up vnet, firewall and jumpbox if not being used by other clusters
+# Clean up the ARO cluster, vnet, firewall and jumpbox
 
 # Remove udr from master and worker subnets first or will get error when deleting ARO cluster
 az network vnet subnet update --vnet-name $AROVNET -n aro-cluster-master -g $RESOURCEGROUP --route-table aro-udr --remove routeTable
@@ -406,6 +406,6 @@ az network vnet subnet update --vnet-name $AROVNET -n aro-cluster-worker -g $RES
 # Remove ARO Cluster
 az aro delete -n $CLUSTER -g $RESOURCEGROUP
 
-# Remove 
+# Remove the resource group that contains the firewall, jumpbox and vnet
 az group delete -n $RESOURCEGROUP
 ```
